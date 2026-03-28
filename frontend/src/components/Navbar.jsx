@@ -70,13 +70,15 @@ export default function Navbar() {
                     <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${activeDropdown === idx ? 'rotate-180' : ''}`} />
                   </button>
                   {activeDropdown === idx && (
-                    <div className="absolute top-full left-0 mt-1 w-72 py-2 bg-navy-800/95 backdrop-blur-xl border border-white/[0.08] rounded-xl shadow-2xl shadow-black/40 animate-fade-in">
-                      {item.children.map((child, ci) => (
-                        <Link key={ci} to={child.href} className="block px-4 py-3 hover:bg-white/[0.04] transition-colors">
-                          <div className="text-sm font-medium text-white">{child.label}</div>
-                          <div className="text-xs text-gray-400 mt-0.5">{child.desc}</div>
-                        </Link>
-                      ))}
+                    <div className="absolute top-full left-0 pt-2">
+                      <div className="w-72 py-2 bg-navy-800/95 backdrop-blur-xl border border-white/[0.08] rounded-xl shadow-2xl shadow-black/40 animate-fade-in">
+                        {item.children.map((child, ci) => (
+                          <Link key={ci} to={child.href} className="block px-4 py-3 hover:bg-white/[0.04] transition-colors">
+                            <div className="text-sm font-medium text-white">{child.label}</div>
+                            <div className="text-xs text-gray-400 mt-0.5">{child.desc}</div>
+                          </Link>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
