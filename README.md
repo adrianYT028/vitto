@@ -6,9 +6,9 @@
 
 ## Live URLs
 
-- **Frontend:** [Deployed URL Placeholder]
-- **Backend:** [Deployed URL Placeholder]
-- **API Health Check:** [Backend URL]/api/health
+- **Frontend:** https://vitto-eight.vercel.app
+- **Backend:** https://vitto-api-brwp.onrender.com
+- **API Health Check:** https://vitto-api-brwp.onrender.com/api/health
 
 ## Tech Stack
 

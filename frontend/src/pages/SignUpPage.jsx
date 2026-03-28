@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Check, Loader2, Mail, Phone, Building2 } from 'lucide-react'
 
-const API_BASE = 'http://localhost:5000'
+const API_BASE = window.location.hostname === 'localhost'
+  ? 'http://localhost:5000'
+  : 'https://vitto-api-brwp.onrender.com'
 
 export default function SignUpPage() {
   const [step, setStep] = useState(1)
