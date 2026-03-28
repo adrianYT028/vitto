@@ -34,6 +34,17 @@ app.use((req, res, next) => {
   next();
 });
 
+// Root route
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    service: 'vitto-api',
+    version: '1.0.0',
+    docs: '/api/health',
+    endpoints: ['/api/auth', '/api/leads', '/api/health'],
+  });
+});
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/leads', leadsRoutes);
