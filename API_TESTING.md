@@ -1,16 +1,22 @@
 # Vitto API — Testing Guide
 
-## Base URL
+## Base URLs
 ```
-http://localhost:5000
+Production:  https://vitto-api-brwp.onrender.com
+Local:       http://localhost:5000
 ```
+
+## Postman Collection
+Import `Vitto_API.postman_collection.json` (included in this repo) into Postman for a ready-to-use test suite with auto-token management.
+
+---
 
 ## 1. Health Check
 ```bash
-curl http://localhost:5000/api/health
+curl https://vitto-api-brwp.onrender.com/api/health
 ```
 
-**Expected Response:**
+**Expected Response (200):**
 ```json
 {
   "success": true,
@@ -23,12 +29,12 @@ curl http://localhost:5000/api/health
 
 ## 2. Send OTP
 ```bash
-curl -X POST http://localhost:5000/api/auth/send-otp \
+curl -X POST https://vitto-api-brwp.onrender.com/api/auth/send-otp \
   -H "Content-Type: application/json" \
   -d '{"phone": "+919876543210"}'
 ```
 
-**Expected Response:**
+**Expected Response (200):**
 ```json
 {
   "success": true,
@@ -37,33 +43,49 @@ curl -X POST http://localhost:5000/api/auth/send-otp \
 }
 ```
 
-> **Note:** The OTP is logged to the server console (mock delivery). Check the terminal running the backend.
+> **Note:** The OTP is logged to the server console (mock delivery). On Render, go to your web service → **Logs** tab to find the OTP. You will see a line like: `[OTP] Phone: +919876543210 → OTP: 543892`
 
 ---
 
 ## 3. Verify OTP
 ```bash
-curl -X POST http://localhost:5000/api/auth/verify-otp \
+curl -X POST https://vitto-api-brwp.onrender.com/api/auth/verify-otp \
   -H "Content-Type: application/json" \
-  -d '{"phone": "+919876543210", "otp": "PASTE_OTP_FROM_CONSOLE"}'
+  -d '{"phone": "+919876543210", "otp": "PASTE_OTP_FROM_LOGS"}'
 ```
 
-**Expected Response:**
+**Expected Response (200):**
 ```json
 {
   "success": true,
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token": "eyJhbGciOiJIUzI1NiIs...",
   "expiresIn": "7d"
 }
 ```
 
-> Save the `token` value — you need it for the next requests.
+> Save the `token` value — you need it for the authenticated requests below.
+
+**Error — Invalid OTP (400):**
+```json
+{
+  "success": false,
+  "error": "Invalid OTP. 2 attempts remaining."
+}
+```
+
+**Error — Max attempts exceeded (429):**
+```json
+{
+  "success": false,
+  "error": "Maximum verification attempts exceeded. Request a new OTP."
+}
+```
 
 ---
 
 ## 4. Create Lead (Requires Auth)
 ```bash
-curl -X POST http://localhost:5000/api/leads \
+curl -X POST https://vitto-api-brwp.onrender.com/api/leads \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer PASTE_JWT_TOKEN_HERE" \
   -d '{
@@ -76,7 +98,7 @@ curl -X POST http://localhost:5000/api/leads \
   }'
 ```
 
-**Expected Response:**
+**Expected Response (201):**
 ```json
 {
   "success": true,
@@ -94,37 +116,19 @@ curl -X POST http://localhost:5000/api/leads \
 }
 ```
 
----
-
-## 5. Get Lead by ID (Requires Auth)
-```bash
-curl http://localhost:5000/api/leads/PASTE_LEAD_ID_HERE \
-  -H "Authorization: Bearer PASTE_JWT_TOKEN_HERE"
-```
-
-**Expected Response:**
+**Validation Error (400):**
 ```json
 {
-  "success": true,
-  "data": {
-    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-    "email": "priya@abcfinance.com",
-    "phone": "+919876543210",
-    "institution_name": "ABC Finance Ltd",
-    "institution_type": "nbfc",
-    "city": "Mumbai",
-    "loan_book_size": "500-2000cr",
-    "status": "new",
-    "created_at": "2026-03-28T12:00:00.000Z"
-  }
+  "success": false,
+  "error": "Validation failed",
+  "details": [
+    { "field": "email", "message": "\"email\" must be a valid email" },
+    { "field": "institution_type", "message": "\"institution_type\" must be one of [bank, nbfc, mfi]" }
+  ]
 }
 ```
 
----
-
-## Error Responses
-
-### 401 Unauthorized (Missing or Invalid Token)
+**Unauthorized (401):**
 ```json
 {
   "success": false,
@@ -132,18 +136,33 @@ curl http://localhost:5000/api/leads/PASTE_LEAD_ID_HERE \
 }
 ```
 
-### 400 Validation Error
+---
+
+## 5. Get Lead by ID (Requires Auth)
+```bash
+curl https://vitto-api-brwp.onrender.com/api/leads/PASTE_LEAD_ID_HERE \
+  -H "Authorization: Bearer PASTE_JWT_TOKEN_HERE"
+```
+
+**Expected Response (200):**
 ```json
 {
-  "success": false,
-  "error": "Validation failed",
-  "details": [
-    { "field": "email", "message": "email must be a valid email" }
-  ]
+  "success": true,
+  "data": {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "email": "priya@abcfinance.com",
+    "phone": "+919876543210",
+    "institution_name": "ABC Finance Ltd",
+    "institution_type": "nbfc",
+    "city": "Mumbai",
+    "loan_book_size": "500-2000cr",
+    "status": "new",
+    "created_at": "2026-03-28T12:00:00.000Z"
+  }
 }
 ```
 
-### 404 Not Found
+**Not Found (404):**
 ```json
 {
   "success": false,
@@ -151,10 +170,13 @@ curl http://localhost:5000/api/leads/PASTE_LEAD_ID_HERE \
 }
 ```
 
-### 429 Too Many OTP Attempts
-```json
-{
-  "success": false,
-  "error": "Maximum verification attempts exceeded. Request a new OTP."
-}
-```
+---
+
+## Testing Flow (Step-by-Step)
+
+1. Run **Health Check** to verify the server is live
+2. Run **Send OTP** with a phone number
+3. Check **Render Logs** for the OTP code
+4. Run **Verify OTP** with the code → save the returned JWT token
+5. Run **Create Lead** with the JWT token → save the returned lead ID
+6. Run **Get Lead by ID** with the JWT token and lead ID

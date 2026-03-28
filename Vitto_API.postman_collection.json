@@ -1,0 +1,264 @@
+{
+  "info": {
+    "name": "Vitto API",
+    "description": "Vitto AI-Native Credit Infrastructure — Backend API endpoints for authentication and lead management.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://vitto-api-brwp.onrender.com",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "lead_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/health",
+          "host": ["{{base_url}}"],
+          "path": ["api", "health"]
+        },
+        "description": "Verify the API server is running. No authentication required."
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"service\": \"vitto-api\",\n  \"timestamp\": \"2026-03-28T12:00:00.000Z\"\n}",
+          "header": [{ "key": "Content-Type", "value": "application/json" }]
+        }
+      ]
+    },
+    {
+      "name": "2. Send OTP",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('OTP sent successfully', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.expiresIn).to.eql(600);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"phone\": \"+919876543210\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/auth/send-otp",
+          "host": ["{{base_url}}"],
+          "path": ["api", "auth", "send-otp"]
+        },
+        "description": "Sends a 6-digit OTP to the provided phone number. The OTP is logged to the server console (mock delivery). In production, this would use an SMS gateway like MSG91 or Twilio.\n\nOTP expires after 10 minutes (600 seconds). Check the Render Logs tab for the OTP value."
+      },
+      "response": [
+        {
+          "name": "200 OK — OTP Sent",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"message\": \"OTP sent successfully\",\n  \"expiresIn\": 600\n}",
+          "header": [{ "key": "Content-Type", "value": "application/json" }]
+        },
+        {
+          "name": "503 — MongoDB Unavailable",
+          "status": "Service Unavailable",
+          "code": 503,
+          "body": "{\n  \"success\": false,\n  \"error\": \"OTP service unavailable. MongoDB is not connected.\"\n}",
+          "header": [{ "key": "Content-Type", "value": "application/json" }]
+        }
+      ]
+    },
+    {
+      "name": "3. Verify OTP",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('OTP verified and token received', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.token).to.be.a('string');",
+              "    // Auto-save token for next requests",
+              "    pm.collectionVariables.set('jwt_token', jsonData.token);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"phone\": \"+919876543210\",\n  \"otp\": \"PASTE_OTP_FROM_RENDER_LOGS\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/auth/verify-otp",
+          "host": ["{{base_url}}"],
+          "path": ["api", "auth", "verify-otp"]
+        },
+        "description": "Verifies the OTP and returns a JWT token. Maximum 3 attempts allowed per OTP session.\n\nIMPORTANT: Replace PASTE_OTP_FROM_RENDER_LOGS with the actual 6-digit OTP from your Render dashboard Logs tab.\n\nThe returned JWT token is automatically saved to the collection variable `jwt_token` for use in subsequent authenticated requests."
+      },
+      "response": [
+        {
+          "name": "200 OK — Verified",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwaG9uZSI6Iis5MTk4NzY1NDMyMTAiLCJhdXRoZW50aWNhdGVkQXQiOiIyMDI2LTAzLTI4VDEyOjAwOjAwLjAwMFoiLCJpYXQiOjE3MTE2MjI0MDB9.abc123\",\n  \"expiresIn\": \"7d\"\n}",
+          "header": [{ "key": "Content-Type", "value": "application/json" }]
+        },
+        {
+          "name": "400 — Invalid OTP",
+          "status": "Bad Request",
+          "code": 400,
+          "body": "{\n  \"success\": false,\n  \"error\": \"Invalid OTP. 2 attempts remaining.\"\n}",
+          "header": [{ "key": "Content-Type", "value": "application/json" }]
+        },
+        {
+          "name": "429 — Max Attempts Exceeded",
+          "status": "Too Many Requests",
+          "code": 429,
+          "body": "{\n  \"success\": false,\n  \"error\": \"Maximum verification attempts exceeded. Request a new OTP.\"\n}",
+          "header": [{ "key": "Content-Type", "value": "application/json" }]
+        }
+      ]
+    },
+    {
+      "name": "4a. Create Lead",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Lead created successfully', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data.id).to.be.a('string');",
+              "    pm.expect(jsonData.data.institution_type).to.be.oneOf(['bank', 'nbfc', 'mfi']);",
+              "    // Auto-save lead ID for GET request",
+              "    pm.collectionVariables.set('lead_id', jsonData.data.id);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"priya@abcfinance.com\",\n  \"phone\": \"+919876543210\",\n  \"institution_name\": \"ABC Finance Ltd\",\n  \"institution_type\": \"nbfc\",\n  \"city\": \"Mumbai\",\n  \"loan_book_size\": \"500-2000cr\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/leads",
+          "host": ["{{base_url}}"],
+          "path": ["api", "leads"]
+        },
+        "description": "Creates a new lead record in PostgreSQL. Requires JWT authentication (Bearer token from verify-otp).\n\nValidation rules:\n- email: required, valid email format\n- phone: optional, international format\n- institution_name: required, 2-255 characters\n- institution_type: required, one of 'bank', 'nbfc', 'mfi'\n- city: optional\n- loan_book_size: optional"
+      },
+      "response": [
+        {
+          "name": "201 Created",
+          "status": "Created",
+          "code": 201,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n    \"email\": \"priya@abcfinance.com\",\n    \"phone\": \"+919876543210\",\n    \"institution_name\": \"ABC Finance Ltd\",\n    \"institution_type\": \"nbfc\",\n    \"city\": \"Mumbai\",\n    \"loan_book_size\": \"500-2000cr\",\n    \"status\": \"new\",\n    \"created_at\": \"2026-03-28T12:00:00.000Z\"\n  }\n}",
+          "header": [{ "key": "Content-Type", "value": "application/json" }]
+        },
+        {
+          "name": "400 — Validation Error",
+          "status": "Bad Request",
+          "code": 400,
+          "body": "{\n  \"success\": false,\n  \"error\": \"Validation failed\",\n  \"details\": [\n    { \"field\": \"email\", \"message\": \"\\\"email\\\" must be a valid email\" },\n    { \"field\": \"institution_type\", \"message\": \"\\\"institution_type\\\" must be one of [bank, nbfc, mfi]\" }\n  ]\n}",
+          "header": [{ "key": "Content-Type", "value": "application/json" }]
+        },
+        {
+          "name": "401 — Unauthorized",
+          "status": "Unauthorized",
+          "code": 401,
+          "body": "{\n  \"success\": false,\n  \"error\": \"Authentication required. Provide a Bearer token.\"\n}",
+          "header": [{ "key": "Content-Type", "value": "application/json" }]
+        }
+      ]
+    },
+    {
+      "name": "4b. Get Lead by ID",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Lead retrieved successfully', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data.email).to.be.a('string');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/leads/{{lead_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "leads", "{{lead_id}}"]
+        },
+        "description": "Retrieves a lead record by its UUID. Requires JWT authentication.\n\nThe lead_id is automatically populated from the Create Lead response if you run the requests in order."
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n    \"email\": \"priya@abcfinance.com\",\n    \"phone\": \"+919876543210\",\n    \"institution_name\": \"ABC Finance Ltd\",\n    \"institution_type\": \"nbfc\",\n    \"city\": \"Mumbai\",\n    \"loan_book_size\": \"500-2000cr\",\n    \"status\": \"new\",\n    \"created_at\": \"2026-03-28T12:00:00.000Z\"\n  }\n}",
+          "header": [{ "key": "Content-Type", "value": "application/json" }]
+        },
+        {
+          "name": "404 — Not Found",
+          "status": "Not Found",
+          "code": 404,
+          "body": "{\n  \"success\": false,\n  \"error\": \"Lead not found.\"\n}",
+          "header": [{ "key": "Content-Type", "value": "application/json" }]
+        }
+      ]
+    }
+  ]
+}
