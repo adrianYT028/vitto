@@ -1,16 +1,27 @@
 const { Pool } = require('pg');
 const config = require('./env');
 
-const pool = new Pool({
-  host: config.pg.host,
-  port: config.pg.port,
-  database: config.pg.database,
-  user: config.pg.user,
-  password: config.pg.password,
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
-});
+// Use DATABASE_URL if available (Render), otherwise individual vars (local)
+const poolConfig = config.databaseUrl
+  ? {
+      connectionString: config.databaseUrl,
+      ssl: config.nodeEnv === 'production' ? { rejectUnauthorized: false } : false,
+      max: 20,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 5000,
+    }
+  : {
+      host: config.pg.host,
+      port: config.pg.port,
+      database: config.pg.database,
+      user: config.pg.user,
+      password: config.pg.password,
+      max: 20,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 5000,
+    };
+
+const pool = new Pool(poolConfig);
 
 pool.on('connect', () => {
   console.log('[PostgreSQL] Client connected');
